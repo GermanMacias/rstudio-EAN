@@ -1,0 +1,387 @@
+---
+title: "Precio de la vivienda en Boston"
+author: "Germán Macías, Mauricio Herrera."
+date: "09/10/2024"
+output: 
+  ioslides_presentation:
+      logo: LogoEAN.JPG
+      css: "custom.css"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+
+
+```{r echo = FALSE}
+# Espacio para escribir cÃ³digo
+if(!require(readxl)) install.packages("readxl", dependencies=TRUE)
+library(readxl)
+# Instalar y cargar el paquete summarytools
+if (!require(summarytools)) install.packages("summarytools", dependencies = TRUE)
+library(summarytools)
+
+if (!require(knitr)) install.packages("knitr", dependencies = TRUE)
+if (!require(kableExtra)) install.packages("kableExtra", dependencies = TRUE)
+if (!require(magrittr)) install.packages("magrittr", dependencies = TRUE)
+
+# Cargar las librerías
+library(knitr)
+library(kableExtra)
+library(magrittr)
+library(lmtest)       # Para pruebas estadísticas del modelo
+library(ggplot2)      # Para gráficos adicionales
+library(summarytools) # Para mostrar resúmenes en formato limpio
+
+```
+
+## Introducción
+
+En esta presentación se analizará el precio de la vivienda en la región de Boston utilizando modelos de regresión lineal múltiple.
+
+Se evaluará el modelo en términos de ajuste, diagnóstico de residuos, y se realizarán pruebas de hipótesis para evaluar la significancia de los coeficientes.
+
+
+## Estructura de variables 
+
+```{r echo = FALSE}
+boston_data <- read_excel("BostonHousing.xlsx", sheet = "Data")
+# Transformar variables cualitativas a factores
+boston_data$CHAS <- as.character(boston_data$CHAS)
+boston_data$ZN <- as.character(boston_data$ZN)
+
+modelo_multiple <- lm(MEDV ~ RM + LSTAT + CRIM, data = boston_data)
+# Crear un dataframe con la estructura de las variables
+estructura_data <- data.frame(
+  Variable = names(boston_data),
+  Tipo = sapply(boston_data, class),
+  Primeros_Valores = sapply(boston_data, function(x) paste(head(x, 3), collapse = ", ")),
+  Valores_Nulos = sapply(boston_data, function(x) sum(is.na(x)))
+)
+
+# Mostrar la tabla usando kable
+knitr::kable(estructura_data, col.names = c("Variable", "Tipo de Dato", "Primeros Valores", "Valores Nulos"), align = "l")
+
+
+```
+
+
+## Análisis de Regresión Lineal Múltiple
+El modelo de regresión lineal múltiple se definió con la variable dependiente `MEDV` (valor medio de las casas) y las siguientes variables independientes:
+
+- `RM`: Número promedio de habitaciones por vivienda.
+- `LSTAT`: Porcentaje de población de estatus socioeconómico más bajo.
+- `CRIM`: Tasa de criminalidad per cápita por municipio.
+
+
+## modelo
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Extraer los coeficientes del modelo de regresión
+coeficientes <- summary(modelo_multiple)$coefficients
+
+# Crear un dataframe con los coeficientes y detalles del modelo
+tabla_resumen <- data.frame(
+  Variable = rownames(coeficientes),
+  Estimación = round(coeficientes[, 1], 4),
+  `Error Estándar` = round(coeficientes[, 2], 4),
+  `Valor t` = round(coeficientes[, 3], 4),
+  `Valor Pr(>|t|)` = round(coeficientes[, 4], 4)
+)
+
+# Mostrar la tabla con kable para una presentación más limpia
+knitr::kable(tabla_resumen, 
+             col.names = c("Variable", "Estimación", "Error Estándar", "Valor t", "Valor Pr(>|t|)"),
+             caption = "Resumen del Modelo de Regresión Lineal Múltiple",
+             align = "c",
+             format = "html") %>%
+  kableExtra::kable_styling(full_width = FALSE, position = "center", font_size = 16)
+
+```
+
+## Gráfico de Diagnóstico del Modelo de Regresión
+```{r echo = FALSE}
+# Espacio para escribir cÃ³digo
+# Mostrar los gráficos de diagnóstico del modelo de regresión
+par(mfrow = c(2, 2))  # Dividir la pantalla en una cuadrícula de 2x2
+plot(modelo_multiple)
+
+## Este comando generará cuatro gráficos:
+
+# Residuos vs. Valores Ajustados.
+# Q-Q Plot (para verificar la normalidad de los residuos).
+# Escala-Localización.
+# Leverage vs. Residuals (para identificar puntos influyentes).
+
+```
+
+## Gráfico de Residuos vs. Valores Ajustados. 
+
+```{r echo = FALSE}
+# Espacio para escribir cÃ³digo
+plot(fitted(modelo_multiple), residuals(modelo_multiple),
+     xlab = "Valores Ajustados", ylab = "Residuos",
+     main = "Residuos vs. Valores Ajustados",
+     col = "blue", pch = 19)
+abline(h = 0, lty = 2, col = "red") # Línea horizontal en cero
+```
+
+## Análisis de Varianza (ANOVA)
+
+
+```{r echo = FALSE}
+
+# Realizar análisis de varianza
+anova_resultados <- anova(modelo_multiple)
+
+# Mostrar la tabla con kableExtra
+knitr::kable(anova_resultados, 
+             caption = "Análisis de Varianza (ANOVA) del Modelo de Regresión Lineal Múltiple",
+             align = "c", format = "html") %>%
+  kableExtra::kable_styling(full_width = FALSE, position = "center", font_size = 14)
+
+
+```
+## Prueba de Heterocedasticidad de Breusch-Pagan
+
+```{r echo = FALSE}
+# Prueba de heterocedasticidad (Breusch-Pagan)
+bptest_resultado <- bptest(modelo_multiple)
+
+# Mostrar resultados de la prueba
+bptest_resultado
+
+
+```
+## Prueba de Autocorrelación (Durbin-Watson)
+```{r echo = FALSE}
+# Prueba de autocorrelación (Durbin-Watson)
+dwtest_resultado <- dwtest(modelo_multiple)
+
+# Mostrar resultados de la prueba
+dwtest_resultado
+
+
+```
+
+## Comparación de viviendas con valor medio superior e inferior a 30 mil dólares
+
+Se requiere comparar las viviendas con valor medio superior a 30 mil dólares y las que tienen un valor medio inferior a ese monto, utilizando pruebas t para comparar las diferencias entre los grupos en relación con algunas variables específicas
+
+##
+``` {r echo = FALSE}
+# Comparación de tasa de delincuencia por valor de vivienda
+t_test_crim <- t.test(CRIM ~ factor(MEDV >= 30), data = boston_data)
+# Comparación de número medio de habitantes por valor de vivienda
+t_test_rm <- t.test(RM ~ factor(MEDV >= 30), data = boston_data)
+# Comparación de distancias ponderadas a cinco centros de empleo
+t_test_dis <- t.test(DIS ~ factor(MEDV >= 30), data = boston_data)
+# Comparación del índice de accesibilidad a carreteras radiales
+t_test_rad <- t.test(as.numeric(RAD) ~ factor(MEDV >= 30), data = boston_data)
+
+# Mostrar resultados
+t_test_crim
+t_test_rm
+t_test_dis
+t_test_rad
+
+```
+## Pruebas de hipótesis para proporciones
+
+```{r echo = FALSE}
+# Calcular proporciones
+prop_alta <- sum(boston_data$MEDV >= 30 & boston_data$PTRATIO < 20) / sum(boston_data$MEDV >= 30)
+prop_baja <- sum(boston_data$MEDV < 30 & boston_data$PTRATIO < 20) / sum(boston_data$MEDV < 30)
+
+# Prueba de hipótesis para proporciones
+prop_test <- prop.test(c(sum(boston_data$MEDV >= 30 & boston_data$PTRATIO < 20), 
+                         sum(boston_data$MEDV < 30 & boston_data$PTRATIO < 20)),
+                       c(sum(boston_data$MEDV >= 30), sum(boston_data$MEDV < 30)))
+
+# Mostrar resultados
+prop_test
+
+
+```
+## Matriz de correlación y selección de predictores
+```{r echo=FALSE}
+
+boston_data$CHAS <- as.numeric(boston_data$CHAS)
+boston_data$ZN <- as.numeric(boston_data$ZN)
+
+# Calcular la matriz de correlación
+correlacion <- cor(boston_data[, c("MEDV", "CRIM", "ZN", "INDUS", "NOX", "RM", "AGE", "DIS", "RAD", "TAX", "PTRATIO", "LSTAT")])
+
+# Seleccionar las tres variables más correlacionadas con MEDV
+correlacion_medv <- sort(correlacion["MEDV", -1], decreasing = TRUE)
+correlacion_medv
+
+```
+
+
+## gráfico para visualizar las correlaciones
+```{r echo=FALSE}
+if (!require(gridExtra)) install.packages("gridExtra", dependencies = TRUE)
+library(gridExtra)
+# Gráfico 1: RM vs MEDV
+plot1 <- ggplot(boston_data, aes(x = RM, y = MEDV)) + 
+  geom_point(color = "blue") + 
+  ggtitle("Relación entre RM y MEDV")
+
+# Gráfico 2: LSTAT vs MEDV
+plot2 <- ggplot(boston_data, aes(x = LSTAT, y = MEDV)) + 
+  geom_point(color = "red") + 
+  ggtitle("Relación entre LSTAT y MEDV")
+
+# Gráfico 3: CRIM vs MEDV
+plot3 <- ggplot(boston_data, aes(x = CRIM, y = MEDV)) + 
+  geom_point(color = "green") + 
+  ggtitle("Relación entre CRIM y MEDV")
+
+# Combinar los gráficos usando gridExtra
+grid.arrange(plot1, plot2, plot3, ncol = 1)
+
+
+
+```
+
+
+## Comparación de Viviendas según Valor Medio
+```{r echo=FALSE}
+
+# Comparación utilizando t.test para cada variable solicitada
+t_test_crim <- t.test(CRIM ~ factor(MEDV >= 30), data = boston_data)
+t_test_rm <- t.test(RM ~ factor(MEDV >= 30), data = boston_data)
+t_test_dis <- t.test(DIS ~ factor(MEDV >= 30), data = boston_data)
+t_test_rad <- t.test(as.numeric(RAD) ~ factor(MEDV >= 30), data = boston_data)
+
+# Consolidar resultados en una tabla
+comparacion_data <- data.frame(
+  Variable = c("Tasa de Criminalidad", "Número Medio de Habitantes", "Distancias Ponderadas a Centros de Empleo", "Índice de Accesibilidad a Carreteras"),
+  `Valor Medio (> 30 mil)` = c(mean(boston_data$CRIM[boston_data$MEDV >= 30]), 
+                               mean(boston_data$RM[boston_data$MEDV >= 30]),
+                               mean(boston_data$DIS[boston_data$MEDV >= 30]),
+                               mean(as.numeric(boston_data$RAD[boston_data$MEDV >= 30]))),
+  `Valor Medio (< 30 mil)` = c(mean(boston_data$CRIM[boston_data$MEDV < 30]), 
+                               mean(boston_data$RM[boston_data$MEDV < 30]),
+                               mean(boston_data$DIS[boston_data$MEDV < 30]),
+                               mean(as.numeric(boston_data$RAD[boston_data$MEDV < 30]))),
+  `p-valor` = c(t_test_crim$p.value, t_test_rm$p.value, t_test_dis$p.value, t_test_rad$p.value)
+)
+
+# Mostrar la tabla con kableExtra
+knitr::kable(comparacion_data, col.names = c("Variable", "Valor Medio (> 30 mil)", "Valor Medio (< 30 mil)", "p-valor"), align = "c", 
+             caption = "Comparación de Variables según el Valor Medio de las Viviendas") %>%
+  kable_styling(full_width = FALSE, position = "center", font_size = 14)
+
+
+```
+
+## Análisis de Proporciones
+
+```{r echo = FALSE}
+
+# Calcular proporciones y realizar la prueba de hipótesis para proporciones
+prop_alta <- sum(boston_data$MEDV >= 30 & boston_data$PTRATIO < 20) / sum(boston_data$MEDV >= 30)
+prop_baja <- sum(boston_data$MEDV < 30 & boston_data$PTRATIO < 20) / sum(boston_data$MEDV < 30)
+prop_test <- prop.test(c(sum(boston_data$MEDV >= 30 & boston_data$PTRATIO < 20), sum(boston_data$MEDV < 30 & boston_data$PTRATIO < 20)),
+                       c(sum(boston_data$MEDV >= 30), sum(boston_data$MEDV < 30)))
+
+# Mostrar resultados en una tabla
+prop_data <- data.frame(
+  `Grupo` = c("Viviendas >= 30 mil", "Viviendas < 30 mil"),
+  `Proporción con PTRATIO < 20` = c(prop_alta, prop_baja),
+  `p-valor` = prop_test$p.value
+)
+
+# Mostrar la tabla con kableExtra
+knitr::kable(prop_data, col.names = c("Grupo", "Proporción con PTRATIO < 20", "p-valor"), align = "c", 
+             caption = "Comparación de Proporciones para PTRATIO < 20") %>%
+  kable_styling(full_width = FALSE, position = "center", font_size = 14)
+
+
+```
+
+
+
+
+## Modelo de regresión
+
+```{r echo=FALSE}
+
+
+# Construcción de modelo completo con todas las variables
+modelo_completo <- lm(MEDV ~ . - MEDV, data = boston_data)
+resumen_completo <- summary(modelo_completo)
+
+# Crear una tabla con los coeficientes del modelo completo
+tabla_completa <- data.frame(
+  Variable = rownames(resumen_completo$coefficients),
+  Estimación = round(resumen_completo$coefficients[, 1], 4),
+  `Error Estándar` = round(resumen_completo$coefficients[, 2], 4),
+  `Valor t` = round(resumen_completo$coefficients[, 3], 4),
+  `Valor Pr(>|t|)` = round(resumen_completo$coefficients[, 4], 4)
+)
+
+# Mostrar la tabla con kableExtra
+knitr::kable(tabla_completa, col.names = c("Variable", "Estimación", "Error Estándar", "Valor t", "Valor Pr(>|t|)"),
+             caption = "Resumen del Modelo Completo de Regresión Lineal Múltiple",
+             align = "c", format = "html") %>%
+  kable_styling(full_width = FALSE, position = "center", font_size = 14)
+
+
+
+```
+
+## Modelo con la vivienda
+```{r echo=FALSE}
+
+par(mfrow = c(2, 2))  # Dividir la pantalla en una cuadrícula de 2x2
+plot(modelo_completo)
+```
+
+
+## Predicción de una Nueva Vivienda
+```{r echo=FALSE}
+
+# Modelo con predictores significativos
+modelo_significativo <- lm(MEDV ~ RM + LSTAT + CRIM, data = boston_data)
+
+# Predicción para una nueva vivienda con el modelo significativo
+nueva_vivienda <- data.frame(CRIM=0.0064, ZN=12, INDUS=2.34, CHAS=0, NOX=0.538, RM=6.575, AGE=70, DIS=4.09, RAD=1, TAX=297, PTRATIO=16.3, LSTAT=4.98)
+prediccion <- predict(modelo_significativo, nueva_vivienda, interval = "prediction")
+
+# Crear una tabla con los resultados de la predicción
+prediccion_data <- data.frame(
+  `Valor Estimado` = round(prediccion[1], 2),
+  `Límite Inferior` = round(prediccion[2], 2),
+  `Límite Superior` = round(prediccion[3], 2)
+)
+
+# Mostrar la tabla con kableExtra
+knitr::kable(prediccion_data, col.names = c("Valor Estimado", "Límite Inferior", "Límite Superior"),
+             caption = "Predicción del Valor Medio para una Nueva Vivienda",
+             align = "c", format = "html") %>%
+  kable_styling(full_width = FALSE, position = "center", font_size = 14)
+
+```
+
+## Conclusiones 
+
+- Se detectaron algunos puntos influyentes y patrones en los residuos que sugieren la necesidad de ajustar el modelo o explorar transformaciones de variables.
+- La tasa de criminalidad (CRIM) y el porcentaje de bajo estatus (LSTAT) tienen un impacto significativo en el valor de las viviendas.
+
+## Referencias.
+ 
+Por favor colocar las referencias en normas APA. 
+
+Shmueli, G., & Bruce, P. (2016). Data Mining for Business Analytics: Concepts, Techniques, and Applications in R. Wiley.
+
+Harrison, D., & Rubinfeld, D. L. (1978). Hedonic prices and the demand for clean air. Journal of Environmental Economics and Management, 5(1), 81-102.
+ 

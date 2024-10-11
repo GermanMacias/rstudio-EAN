@@ -1,0 +1,26 @@
+/* Cambiar el tamaño y espaciado del contenido */
+h1, h2, h3, h4, h5 {
+    margin-top: 40px;
+    margin-bottom: 20px;
+    font-size: 2em;
+  }
+  
+  body {
+    font-size: 20px;
+    line-height: 1.6;
+  }
+  
+  /* Ajustar el tamaño y espaciado de los bloques de código */
+  pre, code {
+    font-size: 18px;
+    margin: 20px 0;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+  }
+  
+  /* Aumentar el ancho de la diapositiva */
+  .slides {
+    padding: 60px !important;
+  }
+  
